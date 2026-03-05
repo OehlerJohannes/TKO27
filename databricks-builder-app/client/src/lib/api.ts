@@ -3,7 +3,21 @@
  * All routes are under /api (proxied in dev).
  */
 
-import type { Cluster, Conversation, Execution, Project, UserInfo, Warehouse } from '@/lib/types';
+import type {
+  Cluster,
+  Conversation,
+  Execution,
+  Project,
+  UserInfo,
+  VsaCustomer,
+  VsaEmail,
+  VsaEmailTemplate,
+  VsaOrder,
+  VsaProduct,
+  VsaTask,
+  VsaTaskStats,
+  Warehouse,
+} from '@/lib/types';
 
 const API_BASE = '/api';
 
@@ -386,4 +400,117 @@ export async function updateEnabledSkills(
 
 export async function reloadProjectSkills(projectId: string): Promise<void> {
   await request(`/projects/${projectId}/skills/reload`, { method: 'POST' });
+}
+
+// ---------------------------------------------------------------------------
+// Virtual Service Assistant API
+// ---------------------------------------------------------------------------
+
+// Products
+export async function fetchVsaProducts(): Promise<VsaProduct[]> {
+  return request<VsaProduct[]>('/vsa/products');
+}
+export async function createVsaProduct(data: Omit<VsaProduct, 'id' | 'created_at'>): Promise<VsaProduct> {
+  return request<VsaProduct>('/vsa/products', { method: 'POST', body: data });
+}
+export async function updateVsaProduct(id: string, data: Omit<VsaProduct, 'id' | 'created_at'>): Promise<VsaProduct> {
+  return request<VsaProduct>(`/vsa/products/${id}`, { method: 'PATCH', body: data });
+}
+export async function deleteVsaProduct(id: string): Promise<void> {
+  return request(`/vsa/products/${id}`, { method: 'DELETE' });
+}
+
+// Customers
+export async function fetchVsaCustomers(): Promise<VsaCustomer[]> {
+  return request<VsaCustomer[]>('/vsa/customers');
+}
+export async function lookupVsaCustomer(email: string): Promise<{ found: boolean; customer: VsaCustomer | null }> {
+  return request(`/vsa/customers/lookup?email=${encodeURIComponent(email)}`);
+}
+export async function createVsaCustomer(data: Omit<VsaCustomer, 'id' | 'created_at'>): Promise<VsaCustomer> {
+  return request<VsaCustomer>('/vsa/customers', { method: 'POST', body: data });
+}
+export async function updateVsaCustomer(id: string, data: Omit<VsaCustomer, 'id' | 'created_at'>): Promise<VsaCustomer> {
+  return request<VsaCustomer>(`/vsa/customers/${id}`, { method: 'PATCH', body: data });
+}
+export async function deleteVsaCustomer(id: string): Promise<void> {
+  return request(`/vsa/customers/${id}`, { method: 'DELETE' });
+}
+
+// Email templates
+export async function fetchVsaTemplates(): Promise<VsaEmailTemplate[]> {
+  return request<VsaEmailTemplate[]>('/vsa/templates');
+}
+export async function createVsaTemplate(data: Omit<VsaEmailTemplate, 'id' | 'created_at'>): Promise<VsaEmailTemplate> {
+  return request<VsaEmailTemplate>('/vsa/templates', { method: 'POST', body: data });
+}
+export async function updateVsaTemplate(id: string, data: Omit<VsaEmailTemplate, 'id' | 'created_at'>): Promise<VsaEmailTemplate> {
+  return request<VsaEmailTemplate>(`/vsa/templates/${id}`, { method: 'PATCH', body: data });
+}
+export async function deleteVsaTemplate(id: string): Promise<void> {
+  return request(`/vsa/templates/${id}`, { method: 'DELETE' });
+}
+
+// Emails
+export async function fetchVsaEmails(): Promise<VsaEmail[]> {
+  return request<VsaEmail[]>('/vsa/emails');
+}
+export async function createVsaEmail(data: {
+  sender_name?: string | null;
+  sender_email: string;
+  subject: string;
+  body: string;
+}): Promise<VsaEmail> {
+  return request<VsaEmail>('/vsa/emails', { method: 'POST', body: data });
+}
+export async function createVsaEmailFromTemplate(templateId: string): Promise<VsaEmail> {
+  return request<VsaEmail>(`/vsa/emails/from-template/${templateId}`, { method: 'POST' });
+}
+export async function classifyVsaEmail(emailId: string): Promise<VsaTask> {
+  return request<VsaTask>(`/vsa/emails/${emailId}/classify`, { method: 'POST' });
+}
+export async function deleteVsaEmail(id: string): Promise<void> {
+  return request(`/vsa/emails/${id}`, { method: 'DELETE' });
+}
+
+// Tasks
+export async function fetchVsaTasks(params?: { status?: string; task_type?: string }): Promise<VsaTask[]> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set('status', params.status);
+  if (params?.task_type) q.set('task_type', params.task_type);
+  return request<VsaTask[]>(`/vsa/tasks${q.toString() ? '?' + q.toString() : ''}`);
+}
+export async function fetchVsaTaskStats(): Promise<VsaTaskStats> {
+  return request<VsaTaskStats>('/vsa/tasks/stats');
+}
+export async function fetchVsaTask(id: string): Promise<VsaTask> {
+  return request<VsaTask>(`/vsa/tasks/${id}`);
+}
+export async function updateVsaTask(
+  id: string,
+  data: {
+    status?: string;
+    draft_reply?: string;
+    notes?: string;
+    problem_summary?: string;
+    solution_summary?: string;
+  }
+): Promise<VsaTask> {
+  return request<VsaTask>(`/vsa/tasks/${id}`, { method: 'PATCH', body: data });
+}
+export async function regenerateVsaReply(id: string): Promise<VsaTask> {
+  return request<VsaTask>(`/vsa/tasks/${id}/regenerate-reply`, { method: 'POST' });
+}
+
+// Orders
+export async function createVsaOrder(data: {
+  task_id: string;
+  quantity: number;
+  delivery_address?: string | null;
+  notes?: string | null;
+}): Promise<VsaOrder> {
+  return request<VsaOrder>('/vsa/orders', { method: 'POST', body: data });
+}
+export async function updateVsaOrderStatus(id: string, status: string): Promise<VsaOrder> {
+  return request<VsaOrder>(`/vsa/orders/${id}`, { method: 'PATCH', body: { status } });
 }

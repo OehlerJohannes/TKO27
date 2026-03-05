@@ -89,3 +89,92 @@ export interface Execution {
   created_at?: string | null;
   updated_at?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Virtual Service Assistant types
+// ---------------------------------------------------------------------------
+
+export interface VsaProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  ingredients: string | null;
+  price: number | null;
+  unit: string | null;
+  stock: number;
+  created_at: string | null;
+}
+
+export interface VsaCustomer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  company: string | null;
+  created_at: string | null;
+}
+
+export interface VsaEmailTemplate {
+  id: string;
+  subject: string;
+  body: string;
+  hint_category: string | null;
+  description: string | null;
+  created_at: string | null;
+}
+
+export interface VsaEmail {
+  id: string;
+  sender_name: string | null;
+  sender_email: string;
+  subject: string;
+  body: string;
+  received_at: string | null;
+  classification: 'order' | 'customer_issue' | 'general_question' | null;
+  status: 'pending' | 'classified';
+  template_id: string | null;
+  created_at: string | null;
+}
+
+export interface VsaOrder {
+  id: string;
+  task_id: string;
+  customer_id: string;
+  product_id: string | null;
+  quantity: number;
+  unit_price: number | null;
+  total_price: number | null;
+  delivery_address: string | null;
+  notes: string | null;
+  status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  created_at: string | null;
+  updated_at: string | null;
+  customer: VsaCustomer | null;
+  product: VsaProduct | null;
+}
+
+export interface VsaTask {
+  id: string;
+  email_id: string;
+  task_type: 'new_order' | 'customer_issue' | 'general_inquiry';
+  status: 'open' | 'in_progress' | 'resolved';
+  customer_id: string | null;
+  product_id: string | null;
+  problem_summary: string | null;
+  solution_summary: string | null;
+  draft_reply: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  email: VsaEmail | null;
+  customer: VsaCustomer | null;
+  product: VsaProduct | null;
+  order: VsaOrder | null;
+}
+
+export interface VsaTaskStats {
+  by_status: { open: number; in_progress: number; resolved: number };
+  by_type: { new_order: number; customer_issue: number; general_inquiry: number };
+  total: number;
+}

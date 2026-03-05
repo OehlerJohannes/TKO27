@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, LargeBinary, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -216,4 +216,239 @@ class Execution(Base):
       'error': self.error,
       'created_at': self.created_at.isoformat() if self.created_at else None,
       'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Virtual Service Assistant models
+# ---------------------------------------------------------------------------
+
+
+class VsaProduct(Base):
+  """Spice mix product catalog."""
+
+  __tablename__ = 'vsa_products'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  name: Mapped[str] = mapped_column(String(255), nullable=False)
+  description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  ingredients: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+  unit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+  stock: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+  tasks: Mapped[List['VsaTask']] = relationship('VsaTask', back_populates='product')
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'name': self.name,
+      'description': self.description,
+      'ingredients': self.ingredients,
+      'price': float(self.price) if self.price is not None else None,
+      'unit': self.unit,
+      'stock': self.stock,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+    }
+
+
+class VsaCustomer(Base):
+  """Customer directory."""
+
+  __tablename__ = 'vsa_customers'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  name: Mapped[str] = mapped_column(String(255), nullable=False)
+  email: Mapped[str] = mapped_column(String(255), nullable=False)
+  phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+  address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  company: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+  tasks: Mapped[List['VsaTask']] = relationship('VsaTask', back_populates='customer')
+
+  __table_args__ = (Index('ix_vsa_customers_email', 'email', unique=True),)
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'name': self.name,
+      'email': self.email,
+      'phone': self.phone,
+      'address': self.address,
+      'company': self.company,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+    }
+
+
+class VsaEmailTemplate(Base):
+  """Sample email templates for testing the classifier."""
+
+  __tablename__ = 'vsa_email_templates'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  subject: Mapped[str] = mapped_column(String(500), nullable=False)
+  body: Mapped[str] = mapped_column(Text, nullable=False)
+  hint_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+  description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+  emails: Mapped[List['VsaEmail']] = relationship('VsaEmail', back_populates='template')
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'subject': self.subject,
+      'body': self.body,
+      'hint_category': self.hint_category,
+      'description': self.description,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+    }
+
+
+class VsaEmail(Base):
+  """Incoming customer emails."""
+
+  __tablename__ = 'vsa_emails'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  sender_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+  sender_email: Mapped[str] = mapped_column(String(255), nullable=False)
+  subject: Mapped[str] = mapped_column(String(500), nullable=False)
+  body: Mapped[str] = mapped_column(Text, nullable=False)
+  received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+  classification: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+  status: Mapped[str] = mapped_column(String(50), nullable=False, default='pending')
+  template_id: Mapped[Optional[str]] = mapped_column(
+    String(50), ForeignKey('vsa_email_templates.id', ondelete='SET NULL'), nullable=True
+  )
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+  template: Mapped[Optional['VsaEmailTemplate']] = relationship('VsaEmailTemplate', back_populates='emails')
+  task: Mapped[Optional['VsaTask']] = relationship('VsaTask', back_populates='email', uselist=False)
+
+  __table_args__ = (Index('ix_vsa_emails_status', 'status'),)
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'sender_name': self.sender_name,
+      'sender_email': self.sender_email,
+      'subject': self.subject,
+      'body': self.body,
+      'received_at': self.received_at.isoformat() if self.received_at else None,
+      'classification': self.classification,
+      'status': self.status,
+      'template_id': self.template_id,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+    }
+
+
+class VsaTask(Base):
+  """Tasks created from classified emails."""
+
+  __tablename__ = 'vsa_tasks'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  email_id: Mapped[str] = mapped_column(
+    String(50), ForeignKey('vsa_emails.id', ondelete='CASCADE'), nullable=False
+  )
+  task_type: Mapped[str] = mapped_column(String(50), nullable=False)
+  status: Mapped[str] = mapped_column(String(50), nullable=False, default='open')
+  customer_id: Mapped[Optional[str]] = mapped_column(
+    String(50), ForeignKey('vsa_customers.id', ondelete='SET NULL'), nullable=True
+  )
+  product_id: Mapped[Optional[str]] = mapped_column(
+    String(50), ForeignKey('vsa_products.id', ondelete='SET NULL'), nullable=True
+  )
+  problem_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  solution_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  draft_reply: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+  )
+
+  email: Mapped['VsaEmail'] = relationship('VsaEmail', back_populates='task')
+  customer: Mapped[Optional['VsaCustomer']] = relationship('VsaCustomer', back_populates='tasks')
+  product: Mapped[Optional['VsaProduct']] = relationship('VsaProduct', back_populates='tasks')
+  order: Mapped[Optional['VsaOrder']] = relationship('VsaOrder', back_populates='task', uselist=False)
+
+  __table_args__ = (Index('ix_vsa_tasks_status_type', 'status', 'task_type'),)
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'email_id': self.email_id,
+      'task_type': self.task_type,
+      'status': self.status,
+      'customer_id': self.customer_id,
+      'product_id': self.product_id,
+      'problem_summary': self.problem_summary,
+      'solution_summary': self.solution_summary,
+      'draft_reply': self.draft_reply,
+      'notes': self.notes,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+      'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+      'email': self.email.to_dict() if self.email else None,
+      'customer': self.customer.to_dict() if self.customer else None,
+      'product': self.product.to_dict() if self.product else None,
+      'order': self.order.to_dict() if self.order else None,
+    }
+
+
+class VsaOrder(Base):
+  """Confirmed orders placed via the Virtual Service Assistant."""
+
+  __tablename__ = 'vsa_orders'
+
+  id: Mapped[str] = mapped_column(String(50), primary_key=True, default=generate_uuid)
+  task_id: Mapped[str] = mapped_column(
+    String(50), ForeignKey('vsa_tasks.id', ondelete='CASCADE'), nullable=False, unique=True
+  )
+  customer_id: Mapped[str] = mapped_column(
+    String(50), ForeignKey('vsa_customers.id', ondelete='CASCADE'), nullable=False
+  )
+  product_id: Mapped[Optional[str]] = mapped_column(
+    String(50), ForeignKey('vsa_products.id', ondelete='SET NULL'), nullable=True
+  )
+  quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+  unit_price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+  total_price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+  delivery_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+  status: Mapped[str] = mapped_column(String(50), nullable=False, default='pending')
+  created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+  )
+
+  task: Mapped['VsaTask'] = relationship('VsaTask', back_populates='order')
+  customer: Mapped['VsaCustomer'] = relationship('VsaCustomer')
+  product: Mapped[Optional['VsaProduct']] = relationship('VsaProduct')
+
+  def to_dict(self) -> dict[str, Any]:
+    """Convert to dictionary."""
+    return {
+      'id': self.id,
+      'task_id': self.task_id,
+      'customer_id': self.customer_id,
+      'product_id': self.product_id,
+      'quantity': self.quantity,
+      'unit_price': float(self.unit_price) if self.unit_price is not None else None,
+      'total_price': float(self.total_price) if self.total_price is not None else None,
+      'delivery_address': self.delivery_address,
+      'notes': self.notes,
+      'status': self.status,
+      'created_at': self.created_at.isoformat() if self.created_at else None,
+      'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+      'customer': self.customer.to_dict() if self.customer else None,
+      'product': self.product.to_dict() if self.product else None,
     }

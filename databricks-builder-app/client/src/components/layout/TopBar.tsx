@@ -84,6 +84,22 @@ export function TopBar({ projectName }: TopBarProps) {
                 <span className="absolute bottom-1.5 left-4 right-4 h-0.5 bg-[var(--color-accent-primary)] rounded-full" />
               )}
             </Link>
+            <Link
+              to="/vsa"
+              className={`
+                relative px-4 py-2 text-sm font-medium transition-colors duration-300
+                ${
+                  location.pathname.startsWith('/vsa')
+                    ? 'text-[var(--color-foreground)]'
+                    : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+                }
+              `}
+            >
+              <span className="relative z-10">Service Assistant</span>
+              {location.pathname.startsWith('/vsa') && (
+                <span className="absolute bottom-1.5 left-4 right-4 h-0.5 bg-[var(--color-accent-primary)] rounded-full" />
+              )}
+            </Link>
           </nav>
 
           {/* User Email */}

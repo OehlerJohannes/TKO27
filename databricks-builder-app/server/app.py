@@ -22,8 +22,22 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-from .db import is_postgres_configured, is_dynamic_token_mode, run_migrations, init_database, start_token_refresh, stop_token_refresh
-from .routers import agent_router, clusters_router, config_router, conversations_router, projects_router, skills_router, warehouses_router
+from .db import is_postgres_configured, is_dynamic_token_mode, run_migrations, create_tables, init_database, start_token_refresh, stop_token_refresh
+from .routers import (
+  agent_router,
+  clusters_router,
+  config_router,
+  conversations_router,
+  projects_router,
+  skills_router,
+  vsa_customers_router,
+  vsa_emails_router,
+  vsa_orders_router,
+  vsa_products_router,
+  vsa_tasks_router,
+  vsa_templates_router,
+  warehouses_router,
+)
 from .services.backup_manager import start_backup_worker, stop_backup_worker
 from .services.skills_manager import copy_skills_to_app
 
@@ -59,7 +73,8 @@ async def lifespan(app: FastAPI):
       if is_dynamic_token_mode():
         await start_token_refresh()
 
-      # Run migrations in background thread (non-blocking)
+      # Create any missing tables (safe with checkfirst=True) then run migrations
+      await create_tables()
       asyncio.create_task(asyncio.to_thread(run_migrations))
 
       # Start backup worker
@@ -125,6 +140,14 @@ app.include_router(projects_router, prefix=API_PREFIX, tags=['projects'])
 app.include_router(conversations_router, prefix=API_PREFIX, tags=['conversations'])
 app.include_router(agent_router, prefix=API_PREFIX, tags=['agent'])
 app.include_router(skills_router, prefix=API_PREFIX, tags=['skills'])
+
+# Virtual Service Assistant routers
+app.include_router(vsa_products_router, prefix=API_PREFIX, tags=['vsa-products'])
+app.include_router(vsa_customers_router, prefix=API_PREFIX, tags=['vsa-customers'])
+app.include_router(vsa_templates_router, prefix=API_PREFIX, tags=['vsa-templates'])
+app.include_router(vsa_emails_router, prefix=API_PREFIX, tags=['vsa-emails'])
+app.include_router(vsa_tasks_router, prefix=API_PREFIX, tags=['vsa-tasks'])
+app.include_router(vsa_orders_router, prefix=API_PREFIX, tags=['vsa-orders'])
 
 # Production: Serve Vite static build
 # Check multiple possible locations for the frontend build
